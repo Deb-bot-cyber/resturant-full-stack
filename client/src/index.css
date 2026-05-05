@@ -31,13 +31,12 @@ h1, h2, h3, h4, h5, h6 {
   @apply bg-white/5 backdrop-blur-md border border-white/10 rounded-2xl;
 }
 
-/* Hide scrollbar for Chrome, Safari and Opera */
-.hide-scrollbar::-webkit-scrollbar {
-  display: none;
+/* Global Scrollbar Hide */
+*::-webkit-scrollbar {
+  display: none !important;
 }
 
-/* Hide scrollbar for IE, Edge and Firefox */
-.hide-scrollbar {
-  -ms-overflow-style: none;  /* IE and Edge */
-  scrollbar-width: none;  /* Firefox */
+* {
+  -ms-overflow-style: none !important;  /* IE and Edge */
+  scrollbar-width: none !important;  /* Firefox */
 }

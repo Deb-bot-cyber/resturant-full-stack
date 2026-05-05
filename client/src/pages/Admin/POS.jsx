@@ -1,14 +1,16 @@
 import { API_URL } from '../../utils/api';
 import React, { useState, useEffect } from 'react';
 import axios from 'axios';
-import { ShoppingBag, Search, Plus, Minus, Trash2, User, MapPin } from 'lucide-react';
-import { useCart } from '../../context/CartContext';
+import { ShoppingBag, Search, Plus, Minus, Trash2, User, MapPin, LayoutGrid, List, Layers } from 'lucide-react';
+import toast from 'react-hot-toast';
+import Tooltip from '../../components/Tooltip';
 
 const POS = () => {
   const [items, setItems] = useState([]);
   const [categories, setCategories] = useState([]);
   const [search, setSearch] = useState('');
   const [selectedCategory, setSelectedCategory] = useState('all');
+  const [viewMode, setViewMode] = useState('list');
   const [cart, setCart] = useState([]);
   const [customerInfo, setCustomerInfo] = useState({ name: '', phone: '', address: 'Walk-in Customer' });
   const [isProcessing, setIsProcessing] = useState(false);
@@ -26,7 +28,7 @@ const POS = () => {
       setItems(menuRes.data);
       setCategories(catRes.data);
     } catch (err) {
-      console.error(err);
+      toast.error('Failed to load menu data');
     }
   };
 
@@ -37,6 +39,7 @@ const POS = () => {
     } else {
       setCart([...cart, { ...item, quantity: 1 }]);
     }
+    toast.success(`${item.name} added to tray`, { duration: 1000 });
   };
 
   const updateQuantity = (id, delta) => {
@@ -50,7 +53,9 @@ const POS = () => {
   };
 
   const removeFromCart = (id) => {
+    const item = cart.find(i => i._id === id);
     setCart(cart.filter(i => i._id !== id));
+    if (item) toast.success(`${item.name} removed`);
   };
 
   const total = cart.reduce((acc, i) => acc + (i.price * i.quantity), 0);
@@ -58,6 +63,7 @@ const POS = () => {
   const handleCheckout = async () => {
     if (cart.length === 0) return;
     setIsProcessing(true);
+    const loadingToast = toast.loading('Processing payment...');
     try {
       const orderData = {
         items: cart.map(i => ({
@@ -70,15 +76,14 @@ const POS = () => {
         customerName: customerInfo.name || 'Walk-in Customer',
         phone: customerInfo.phone || 'N/A',
         address: customerInfo.address,
-        status: 'completed' // POS orders are usually completed immediately
+        status: 'completed'
       };
       await axios.post(`${API_URL}/api/orders`, orderData);
-      alert('Order Processed Successfully!');
+      toast.success('Order Completed Successfully!', { id: loadingToast });
       setCart([]);
       setCustomerInfo({ name: '', phone: '', address: 'Walk-in Customer' });
     } catch (err) {
-      console.error(err);
-      alert('Failed to process order');
+      toast.error('Failed to process order', { id: loadingToast });
     } finally {
       setIsProcessing(false);
     }
@@ -91,135 +96,212 @@ const POS = () => {
   });
 
   return (
-    <div className="flex h-[calc(100vh-140px)] gap-8 font-sans">
-      {/* Left: Menu Selection */}
-      <div className="flex-1 flex flex-col gap-8 h-full min-w-0">
-        <div className="flex flex-col md:flex-row gap-6">
-          <div className="relative flex-1">
-            <Search className="absolute left-6 top-1/2 -translate-y-1/2 text-gray-500" size={18} />
-            <input 
-              value={search}
-              onChange={(e) => setSearch(e.target.value)}
-              placeholder="SEARCH MENU..."
-              className="w-full bg-[#111111] border border-white/5 rounded-full pl-16 pr-8 py-5 text-sm font-black text-white uppercase tracking-widest focus:border-[#FFE600] outline-none"
-            />
-          </div>
-          <div className="flex gap-2 overflow-x-auto pb-2 scrollbar-hide">
-            <button 
-              onClick={() => setSelectedCategory('all')}
-              className={`px-6 py-4 rounded-full text-[10px] font-black uppercase tracking-widest whitespace-nowrap transition-all ${selectedCategory === 'all' ? 'bg-[#FFE600] text-black' : 'bg-[#111111] text-gray-400 border border-white/5'}`}
-            >
-              All Items
-            </button>
-            {categories.map(cat => (
-              <button 
-                key={cat._id}
-                onClick={() => setSelectedCategory(cat._id)}
-                className={`px-6 py-4 rounded-full text-[10px] font-black uppercase tracking-widest whitespace-nowrap transition-all ${selectedCategory === cat._id ? 'bg-[#FFE600] text-black' : 'bg-[#111111] text-gray-400 border border-white/5'}`}
-              >
-                {cat.name}
-              </button>
-            ))}
-          </div>
-        </div>
+    <div className="flex h-[calc(100vh-120px)] -m-8 overflow-hidden">
+      {/* Left Column: Header & Menu */}
+      <div className="flex-1 flex flex-col gap-8 p-8 overflow-hidden min-w-0">
+        <div className="flex-1 flex flex-col gap-6 min-h-0">
+          <div className="flex justify-between items-center gap-4 shrink-0">
+            <div className="flex items-center gap-3 flex-1 max-w-xl">
+              <div className="relative flex-1">
+                <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-500" size={16} />
+                <input 
+                  value={search}
+                  onChange={(e) => setSearch(e.target.value)}
+                  placeholder="Search products..."
+                  className="w-full bg-[#0A0A0A] border border-white/10 rounded-lg pl-10 pr-4 py-2 text-sm text-white focus:outline-none focus:border-[#FFE600]"
+                />
+              </div>
 
-        <div className="flex-1 overflow-y-auto pr-4 custom-scrollbar">
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
-            {filteredItems.map(item => (
-              <div 
-                key={item._id} 
-                onClick={() => addToCart(item)}
-                className="bg-[#111111] border border-white/5 rounded-3xl p-4 cursor-pointer hover:border-[#FFE600]/50 transition-all group"
-              >
-                <div className="aspect-square rounded-2xl overflow-hidden mb-4 border border-white/5">
-                  <img src={item.image} alt={item.name} className="w-full h-full object-cover grayscale group-hover:grayscale-0 transition-all" />
-                </div>
-                <h4 className="text-white text-xs font-black uppercase tracking-tight mb-1 truncate">{item.name}</h4>
-                <div className="flex justify-between items-center">
-                   <span className="text-gray-500 text-[10px] uppercase font-bold tracking-widest">{item.category?.name}</span>
-                   <span className="text-[#FFE600] font-black">${item.price}</span>
+              <div className="relative">
+                <select 
+                  value={selectedCategory}
+                  onChange={(e) => setSelectedCategory(e.target.value)}
+                  className="appearance-none bg-[#0A0A0A] border border-white/10 rounded-lg pl-4 pr-10 py-2 text-sm text-white focus:outline-none focus:border-[#FFE600] cursor-pointer min-w-[140px]"
+                >
+                  <option value="all">All Categories</option>
+                  {categories.map(cat => (
+                    <option key={cat._id} value={cat._id}>{cat.name}</option>
+                  ))}
+                </select>
+                <div className="absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none text-gray-500">
+                   <Layers size={14} />
                 </div>
               </div>
-            ))}
+            </div>
+            
+            <div className="flex items-center gap-4">
+              <div className="flex bg-black/40 p-1 rounded-lg border border-white/5 shadow-xl">
+                <button 
+                  onClick={() => setViewMode('grid')}
+                  className={`p-2 rounded-md transition-all ${viewMode === 'grid' ? 'bg-[#FFE600] text-black shadow-lg shadow-[#FFE600]/10' : 'text-gray-500 hover:text-white'}`}
+                >
+                  <LayoutGrid size={16} />
+                </button>
+                <button 
+                  onClick={() => setViewMode('list')}
+                  className={`p-2 rounded-md transition-all ${viewMode === 'list' ? 'bg-[#FFE600] text-black shadow-lg shadow-[#FFE600]/10' : 'text-gray-500 hover:text-white'}`}
+                >
+                  <List size={16} />
+                </button>
+              </div>
+            </div>
+          </div>
+
+          <div className="bg-[#111111] border border-white/5 rounded-2xl overflow-hidden shadow-2xl flex-1 flex flex-col min-h-0">
+            <div className="overflow-y-auto flex-1 custom-scrollbar">
+               {viewMode === 'list' ? (
+                  <table className="w-full text-left text-sm">
+                    <thead className="bg-black/40 text-gray-500 uppercase text-[11px] font-bold tracking-widest border-b border-white/5 sticky top-0 z-10">
+                      <tr>
+                        <th className="px-8 py-5 w-24">Img</th>
+                        <th className="px-8 py-5">Product Name</th>
+                        <th className="px-8 py-5">Price</th>
+                        <th className="px-8 py-5 text-right">Action</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-white/5">
+                      {filteredItems.map(item => (
+                        <tr key={item._id} className="hover:bg-white/[0.02] transition-colors group cursor-pointer" onClick={() => addToCart(item)}>
+                          <td className="px-8 py-4">
+                            <img src={item.image} className="w-10 h-10 rounded-lg object-cover transition-all border border-white/5" />
+                          </td>
+                          <td className="px-8 py-4">
+                            <span className="font-medium text-white">{item.name}</span>
+                            <p className="text-[10px] text-gray-600 uppercase font-bold tracking-widest">{item.category?.name}</p>
+                          </td>
+                          <td className="px-8 py-4 font-bold text-gray-200">${item.price}</td>
+                          <td className="px-8 py-4 text-right">
+                             <Tooltip text="Add to Tray">
+                                <button className="bg-white/5 text-white p-2 rounded-lg group-hover:bg-[#FFE600] group-hover:text-black transition-all">
+                                   <Plus size={16} />
+                                </button>
+                             </Tooltip>
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+               ) : (
+                  <div className="p-8 grid grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
+                     {filteredItems.map(item => (
+                        <div 
+                           key={item._id} 
+                           onClick={() => addToCart(item)}
+                           className="bg-black/20 border border-white/5 rounded-2xl p-4 cursor-pointer hover:border-[#FFE600]/50 transition-all group"
+                        >
+                           <div className="aspect-square rounded-xl overflow-hidden mb-4 border border-white/5">
+                              <img src={item.image} alt={item.name} className="w-full h-full object-cover transition-all" />
+                           </div>
+                           <h4 className="text-white text-[11px] font-bold uppercase tracking-tight mb-1 truncate">{item.name}</h4>
+                           <div className="flex justify-between items-center">
+                              <span className="text-gray-600 text-[9px] uppercase font-bold tracking-widest">{item.category?.name}</span>
+                              <span className="text-[#FFE600] font-bold text-xs">${item.price}</span>
+                           </div>
+                        </div>
+                     ))}
+                  </div>
+               )}
+               {filteredItems.length === 0 && (
+                <div className="py-24 text-center text-gray-500 font-medium">No products found.</div>
+              )}
+            </div>
           </div>
         </div>
       </div>
 
-      {/* Right: Cart & Checkout */}
-      <div className="w-[400px] flex flex-col gap-8 bg-[#111111] border border-white/5 rounded-[40px] p-8 h-full shadow-2xl overflow-hidden">
-        <div className="flex items-center gap-4 border-b border-white/5 pb-6">
-           <div className="w-12 h-12 rounded-2xl bg-[#FFE600] text-black flex items-center justify-center">
-              <ShoppingBag size={24} />
-           </div>
-           <div>
-              <h3 className="text-white font-serif text-xl uppercase tracking-tight">Order Tray</h3>
-              <p className="text-gray-500 text-[10px] font-black uppercase tracking-[0.2em]">{cart.length} items selected</p>
-           </div>
-        </div>
+      {/* Right Column: Order Tray (Full Height) */}
+      <div className="w-[480px] bg-[#111111] border-l border-white/5 flex flex-col h-full shadow-2xl shrink-0">
+         <div className="bg-black/40 p-8 border-b border-white/5 flex items-center justify-between">
+            <div className="flex items-center gap-4">
+               <div className="p-3 bg-[#FFE600] text-black rounded-xl">
+                  <ShoppingBag size={20} />
+               </div>
+               <div>
+                  <h3 className="text-white text-base font-bold uppercase tracking-widest">Order Tray</h3>
+                  <p className="text-[10px] text-gray-500 uppercase font-bold tracking-[0.2em]">{cart.length} items selected</p>
+               </div>
+            </div>
+            <Tooltip text="Reset Cart">
+              <button onClick={() => { setCart([]); toast.success('Cart cleared'); }} className="text-[10px] font-bold text-gray-600 uppercase hover:text-rose-500 tracking-widest transition-colors">Clear All</button>
+            </Tooltip>
+         </div>
 
-        <div className="flex-1 overflow-y-auto space-y-4 pr-2 custom-scrollbar">
-           {cart.map(item => (
-             <div key={item._id} className="flex gap-4 bg-white/[0.02] border border-white/5 p-4 rounded-2xl">
-                <div className="w-14 h-14 rounded-xl overflow-hidden shrink-0 border border-white/5">
-                   <img src={item.image} alt={item.name} className="w-full h-full object-cover" />
-                </div>
-                <div className="flex-1 min-w-0">
-                   <h5 className="text-white text-[11px] font-black uppercase truncate mb-2">{item.name}</h5>
-                   <div className="flex justify-between items-center">
-                      <div className="flex items-center gap-3">
-                         <button onClick={() => updateQuantity(item._id, -1)} className="text-gray-500 hover:text-[#FFE600]"><Minus size={14} /></button>
-                         <span className="text-white text-xs font-bold">{item.quantity}</span>
-                         <button onClick={() => updateQuantity(item._id, 1)} className="text-gray-500 hover:text-[#FFE600]"><Plus size={14} /></button>
-                      </div>
-                      <span className="text-[#FFE600] font-black text-xs">${(item.price * item.quantity).toFixed(2)}</span>
-                   </div>
-                </div>
-                <button onClick={() => removeFromCart(item._id)} className="text-gray-700 hover:text-rose-500 ml-2"><Trash2 size={16} /></button>
-             </div>
-           ))}
-           {cart.length === 0 && (
-             <div className="h-full flex flex-col items-center justify-center opacity-20 text-center py-20">
-                <ShoppingBag size={64} className="mb-4" />
-                <p className="text-xs uppercase font-black tracking-widest">Tray is empty</p>
-             </div>
-           )}
-        </div>
-
-        <div className="space-y-6 pt-6 border-t border-white/5">
-           <div className="space-y-3">
-              <div className="flex items-center gap-3 bg-white/5 rounded-2xl px-4 py-3">
-                 <User size={14} className="text-gray-500" />
-                 <input 
-                    value={customerInfo.name}
-                    onChange={e => setCustomerInfo({...customerInfo, name: e.target.value})}
-                    placeholder="CUSTOMER NAME..."
-                    className="bg-transparent border-none text-[10px] font-black text-white w-full uppercase outline-none"
-                 />
+         <div className="flex-1 overflow-y-auto custom-scrollbar p-4">
+            <table className="w-full text-left text-sm border-separate border-spacing-y-2">
+               <thead className="text-gray-600 uppercase text-[9px] font-bold tracking-widest">
+                  <tr>
+                     <th className="px-4 py-2">Item</th>
+                     <th className="px-4 py-2 text-center">Qty</th>
+                     <th className="px-4 py-2 text-right">Total</th>
+                     <th className="px-4 py-2"></th>
+                  </tr>
+               </thead>
+               <tbody className="divide-y divide-white/5">
+                  {cart.map(item => (
+                     <tr key={item._id} className="bg-white/[0.02] hover:bg-white/[0.04] transition-colors rounded-xl overflow-hidden">
+                        <td className="px-4 py-4 first:rounded-l-xl">
+                           <span className="text-white font-medium block leading-none">{item.name}</span>
+                        </td>
+                        <td className="px-4 py-4">
+                           <div className="flex items-center justify-center gap-3">
+                              <button onClick={() => updateQuantity(item._id, -1)} className="text-gray-600 hover:text-white p-1"><Minus size={12} /></button>
+                              <span className="text-white text-xs font-bold w-4 text-center">{item.quantity}</span>
+                              <button onClick={() => updateQuantity(item._id, 1)} className="text-gray-600 hover:text-[#FFE600] p-1"><Plus size={12} /></button>
+                           </div>
+                        </td>
+                        <td className="px-4 py-4 text-right font-bold text-gray-300">${(item.price * item.quantity).toFixed(2)}</td>
+                        <td className="px-4 py-4 text-right last:rounded-r-xl">
+                           <button onClick={() => removeFromCart(item._id)} className="text-gray-800 hover:text-rose-500 transition-colors"><Trash2 size={14} /></button>
+                        </td>
+                     </tr>
+                  ))}
+               </tbody>
+            </table>
+            {cart.length === 0 && (
+              <div className="h-full py-40 text-center text-gray-700 opacity-50 flex flex-col items-center justify-center">
+                 <ShoppingBag size={64} className="mb-4" />
+                 <span className="text-[10px] font-bold uppercase tracking-widest">No Items Selected</span>
               </div>
-              <div className="flex items-center gap-3 bg-white/5 rounded-2xl px-4 py-3">
-                 <MapPin size={14} className="text-gray-500" />
-                 <input 
-                    value={customerInfo.address}
-                    onChange={e => setCustomerInfo({...customerInfo, address: e.target.value})}
-                    placeholder="TABLE / ADDRESS..."
-                    className="bg-transparent border-none text-[10px] font-black text-white w-full uppercase outline-none"
-                 />
-              </div>
-           </div>
+            )}
+         </div>
 
-           <div className="flex justify-between items-center">
-              <span className="text-white/40 text-[10px] font-black uppercase tracking-[0.2em]">Total Amount</span>
-              <span className="text-2xl font-black text-[#FFE600]">${total.toFixed(2)}</span>
-           </div>
+         <div className="p-8 bg-black/40 border-t border-white/5 space-y-6 shrink-0">
+            <div className="space-y-3">
+               <div className="grid grid-cols-2 gap-3">
+                  <div className="flex items-center gap-3 bg-white/5 rounded-xl px-4 py-3 border border-white/5">
+                     <User size={14} className="text-gray-600" />
+                     <input 
+                        value={customerInfo.name}
+                        onChange={e => setCustomerInfo({...customerInfo, name: e.target.value})}
+                        placeholder="NAME..."
+                        className="bg-transparent border-none text-[10px] font-bold text-white w-full uppercase outline-none"
+                     />
+                  </div>
+                  <div className="flex items-center gap-3 bg-white/5 rounded-xl px-4 py-3 border border-white/5">
+                     <MapPin size={14} className="text-gray-600" />
+                     <input 
+                        value={customerInfo.address}
+                        onChange={e => setCustomerInfo({...customerInfo, address: e.target.value})}
+                        placeholder="TABLE..."
+                        className="bg-transparent border-none text-[10px] font-bold text-white w-full uppercase outline-none"
+                     />
+                  </div>
+               </div>
+            </div>
 
-           <button 
+            <div className="flex justify-between items-center border-t border-white/5 pt-4">
+               <span className="text-gray-600 text-[10px] font-bold uppercase tracking-widest">Grand Total</span>
+               <span className="text-3xl font-bold text-[#FFE600]">${total.toFixed(2)}</span>
+            </div>
+
+            <button 
               disabled={cart.length === 0 || isProcessing}
               onClick={handleCheckout}
-              className="w-full bg-[#FFE600] text-black font-black py-5 rounded-full uppercase tracking-[0.2em] text-[10px] hover:bg-white transition-all disabled:opacity-30 shadow-[0_15px_30px_rgba(255,230,0,0.1)]"
-           >
-              {isProcessing ? 'PROCESSING...' : 'PROCESS PAYMENT'}
-           </button>
-        </div>
+              className="w-full bg-[#FFE600] text-black font-bold py-5 rounded-xl uppercase tracking-widest text-xs hover:bg-white transition-all disabled:opacity-20 shadow-xl shadow-[#FFE600]/10"
+            >
+              {isProcessing ? 'Processing...' : 'Complete Payment'}
+            </button>
+         </div>
       </div>
     </div>
   );

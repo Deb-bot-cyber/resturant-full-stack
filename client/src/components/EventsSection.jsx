@@ -101,7 +101,7 @@ const EventsSection = () => {
                 <img 
                   src={event.image} 
                   alt={event.title} 
-                  className="w-full h-full object-cover transition-transform duration-1000 group-hover:scale-110 grayscale group-hover:grayscale-0"
+                  className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-110"
                 />
                 <div className="absolute top-8 left-8">
                   <div className="bg-white/90 backdrop-blur-md px-5 py-2.5 rounded-full flex items-center gap-2 shadow-xl">

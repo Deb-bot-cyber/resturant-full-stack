@@ -41,10 +41,22 @@ app.get('/', (req, res) => {
 });
 
 // MongoDB Connection
-mongoose.connect(process.env.MONGODB_URI || 'mongodb://localhost:27017/artisan-feast')
-  .then(() => console.log('MongoDB Connected'))
-  .catch(err => console.log(err));
+const MONGO_URI = process.env.MONGODB_URI || 'mongodb+srv://admin:admin@resturant1.ylc1f0f.mongodb.net/artisan-feast?appName=Resturant1';
+
+mongoose.connect(MONGO_URI)
+  .then(() => console.log('✅ MongoDB Connected to Cloud'))
+  .catch(err => console.log('❌ MongoDB Connection Error:', err));
+
+mongoose.connection.on('error', err => {
+  console.log('❌ MongoDB Runtime Error:', err);
+});
+
+// Global Error Handler
+app.use((err, req, res, next) => {
+  console.error('❌ Server Error:', err.stack);
+  res.status(500).json({ message: 'Internal Server Error', error: err.message });
+});
 
 app.listen(PORT, () => {
-  console.log(`Server is running on port ${PORT}`);
+  console.log(`🚀 Server is running on port ${PORT}`);
 });

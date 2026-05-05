@@ -1,7 +1,7 @@
 import { API_URL } from '../utils/api';
 import React, { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
-import { Star, Plus } from 'lucide-react';
+import { Star, Plus, ChevronLeft, ChevronRight } from 'lucide-react';
 import axios from 'axios';
 import { useCart } from '../context/CartContext';
 
@@ -21,8 +21,9 @@ const ExquisiteFavorites = () => {
         axios.get(`${API_URL}/api/menu`),
         axios.get(`${API_URL}/api/categories`)
       ]);
-      // Filter for favorite items or just top items
-      setItems(menuRes.data.filter(i => i.isFavorite).slice(0, 8));
+      // Show favorites first, or all items if no favorites marked
+      const filtered = menuRes.data.filter(i => i.isFavorite);
+      setItems(filtered.length > 0 ? filtered.slice(0, 8) : menuRes.data.slice(0, 8));
       setCategories(catRes.data);
     } catch (err) {
       console.error(err);
@@ -88,7 +89,7 @@ const ExquisiteFavorites = () => {
                 <img 
                   src={item.image} 
                   alt={item.name} 
-                  className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-110 grayscale group-hover:grayscale-0"
+                  className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-110"
                 />
                 <div className="absolute top-4 right-4 flex gap-2">
                    <div className="bg-black/80 backdrop-blur-md p-2 rounded-full text-[#FFE600]">
