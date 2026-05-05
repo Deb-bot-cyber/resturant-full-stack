@@ -1,2 +1,163 @@
 import { API_URL } from '../../utils/api';
-import React, { useState, useEffect } from 'react'; import axios from 'axios'; import { Filter, Eye, CheckCircle, Clock, XCircle, X } from 'lucide-react';  const Orders = () => {   const [filter, setFilter] = useState('All');   const [orders, setOrders] = useState([]);   const [selectedOrder, setSelectedOrder] = useState(null);   const [isModalOpen, setIsModalOpen] = useState(false);   const [updateStatus, setUpdateStatus] = useState('');   const [prepTime, setPrepTime] = useState('');    useEffect(() => {     fetchOrders();     // Poll for new orders     const interval = setInterval(fetchOrders, 10000);     return () => clearInterval(interval);   }, []);    const fetchOrders = async () => {     try {       const res = await axios.get('${API_URL}/api/orders');       setOrders(res.data);     } catch (err) {       console.error(err);     }   };    const handleOpenModal = (order) => {     setSelectedOrder(order);     setUpdateStatus(order.status);     setPrepTime(order.prepTime || '');     setIsModalOpen(true);   };    const handleUpdateOrder = async (e) => {     e.preventDefault();     try {       await axios.put(`${API_URL}/api/orders/${selectedOrder._id}`, {         status: updateStatus,         prepTime: updateStatus === 'Preparing' ? Number(prepTime) : null       });       setIsModalOpen(false);       fetchOrders();     } catch (err) {       console.error(err);       alert('Failed to update order');     }   };    const filteredOrders = filter === 'All' ? orders : orders.filter(o => o.status === filter);    return (     <div className="space-y-8">       <div className="flex items-center justify-between">         <div>           <h1 className="text-3xl font-serif text-white mb-2">Orders Tracking</h1>           <p className="text-gray-400 tracking-wide text-sm">Monitor and manage live restaurant orders.</p>         </div>       </div>        <div className="bg-[#111111] border border-white/5 rounded-xl overflow-hidden">         <div className="border-b border-white/5 p-4 flex items-center justify-between">           <div className="flex items-center space-x-2 overflow-x-auto pb-2 md:pb-0 hide-scrollbar">             {['All', 'Pending', 'Preparing', 'Ready', 'Delivered', 'Cancelled'].map(status => (               <button                 key={status}                 onClick={() => setFilter(status)}                 className={`px-4 py-2 rounded-full text-xs tracking-widest uppercase whitespace-nowrap transition-colors ${                   filter === status                      ? 'bg-white/10 text-white font-semibold'                      : 'text-gray-500 hover:text-gray-300'                 }`}               >                 {status}               </button>             ))}           </div>         </div>          <div className="overflow-x-auto">           <table className="w-full text-left border-collapse min-w-[800px]">             <thead>               <tr className="bg-black/50 text-gray-400 text-xs tracking-widest uppercase">                 <th className="px-6 py-4 font-normal">Order ID</th>                 <th className="px-6 py-4 font-normal">Time</th>                 <th className="px-6 py-4 font-normal">Customer</th>                 <th className="px-6 py-4 font-normal">Table</th>                 <th className="px-6 py-4 font-normal">Status</th>                 <th className="px-6 py-4 font-normal text-right">Actions</th>               </tr>             </thead>             <tbody className="text-sm">               {filteredOrders.map((order) => (                 <tr key={order._id} className="border-b border-white/5 hover:bg-white/5 transition-colors group">                   <td className="px-6 py-4 text-[#D4AF37] font-medium">{order._id.substring(18)}</td>                   <td className="px-6 py-4 text-gray-400">{new Date(order.createdAt).toLocaleTimeString()}</td>                   <td className="px-6 py-4 text-gray-200">{order.customerName}</td>                   <td className="px-6 py-4 text-gray-400">{order.tableNumber || '-'}</td>                   <td className="px-6 py-4">                     <span className={`flex items-center space-x-1.5 px-3 py-1 rounded-full text-xs tracking-wide w-fit ${                       order.status === 'Pending' ? 'bg-blue-500/10 text-blue-400' :                       order.status === 'Preparing' ? 'bg-amber-500/10 text-amber-500' :                       order.status === 'Ready' ? 'bg-emerald-500/10 text-emerald-500' :                       order.status === 'Delivered' ? 'bg-gray-500/10 text-gray-400' :                       'bg-rose-500/10 text-rose-500'                     }`}>                       {order.status === 'Pending' && <Clock size={12} />}                       {order.status === 'Delivered' && <CheckCircle size={12} />}                       {order.status === 'Cancelled' && <XCircle size={12} />}                       <span>{order.status}</span>                       {order.status === 'Preparing' && order.prepTime && <span className="ml-1 font-bold">({order.prepTime}m)</span>}                     </span>                   </td>                   <td className="px-6 py-4 text-right">                     <button onClick={() => handleOpenModal(order)} className="text-[#D4AF37] hover:text-white transition-colors bg-[#D4AF37]/10 px-4 py-2 rounded-lg text-xs font-bold uppercase tracking-widest">                       Manage                     </button>                   </td>                 </tr>               ))}               {filteredOrders.length === 0 && (                 <tr>                   <td colSpan="6" className="px-6 py-12 text-center text-gray-500 text-sm">                     No orders found.                   </td>                 </tr>               )}             </tbody>           </table>         </div>       </div>        {isModalOpen && selectedOrder && (         <div className="fixed inset-0 bg-black/80 backdrop-blur-sm z-50 flex items-center justify-center p-4">           <div className="bg-[#111111] border border-white/10 rounded-3xl w-full max-w-md p-6 relative">             <button onClick={() => setIsModalOpen(false)} className="absolute top-6 right-6 text-gray-500 hover:text-white transition-colors">               <X size={20} />             </button>             <h2 className="text-xl font-serif text-white mb-6">Manage Order {selectedOrder._id.substring(18)}</h2>                          <div className="mb-6 space-y-2 text-sm text-gray-300 bg-white/5 p-4 rounded-xl">               <p><span className="text-gray-500">Customer:</span> {selectedOrder.customerName}</p>               <p><span className="text-gray-500">Table:</span> {selectedOrder.tableNumber}</p>               <p><span className="text-gray-500">Total:</span> {selectedOrder.total}</p>               <div className="mt-2 pt-2 border-t border-white/10">                 <p className="text-gray-500 mb-1">Items:</p>                 {selectedOrder.items.map((item, i) => (                   <p key={i}>- {item.quantity}x {item.name}</p>                 ))}               </div>             </div>              <form onSubmit={handleUpdateOrder} className="space-y-4">               <div>                 <label className="block text-xs uppercase tracking-widest text-gray-400 mb-2">Update Status</label>                 <select                    value={updateStatus}                    onChange={(e) => setUpdateStatus(e.target.value)}                   className="w-full bg-black border border-white/10 rounded-lg px-4 py-3 text-white focus:outline-none focus:border-[#D4AF37]"                 >                   <option value="Pending">Pending</option>                   <option value="Preparing">Preparing</option>                   <option value="Ready">Ready to Serve</option>                   <option value="Delivered">Delivered</option>                   <option value="Cancelled">Cancelled</option>                 </select>               </div>                {updateStatus === 'Preparing' && (                 <div>                   <label className="block text-xs uppercase tracking-widest text-gray-400 mb-2">Estimated Prep Time (Minutes)</label>                   <input                      type="number"                      required                     min="1"                     value={prepTime}                      onChange={e => setPrepTime(e.target.value)}                      className="w-full bg-black border border-white/10 rounded-lg px-4 py-3 text-white focus:outline-none focus:border-[#D4AF37]"                      placeholder="e.g. 15"                    />                 </div>               )}                <button type="submit" className="w-full bg-[#D4AF37] text-black font-bold py-4 rounded-xl hover:bg-[#F3E5AB] transition-colors uppercase tracking-widest text-xs mt-4">                 Update Order               </button>             </form>           </div>         </div>       )}     </div>   ); };  export default Orders;
+import React, { useState, useEffect } from 'react';
+import axios from 'axios';
+import { Filter, Eye, CheckCircle, Clock, XCircle, X } from 'lucide-react';
+
+const Orders = () => {
+  const [orders, setOrders] = useState([]);
+  const [filter, setFilter] = useState('all');
+  const [selectedOrder, setSelectedOrder] = useState(null);
+
+  useEffect(() => {
+    fetchOrders();
+  }, []);
+
+  const fetchOrders = async () => {
+    try {
+      const res = await axios.get(`${API_URL}/api/orders`);
+      setOrders(res.data);
+    } catch (err) {
+      console.error(err);
+    }
+  };
+
+  const updateStatus = async (id, status) => {
+    try {
+      await axios.put(`${API_URL}/api/orders/${id}`, { status });
+      fetchOrders();
+      if (selectedOrder && selectedOrder._id === id) {
+        setSelectedOrder({...selectedOrder, status});
+      }
+    } catch (err) {
+      console.error(err);
+    }
+  };
+
+  const filteredOrders = filter === 'all' 
+    ? orders 
+    : orders.filter(o => o.status === filter);
+
+  return (
+    <div className="space-y-8">
+      <div className="flex justify-between items-end">
+        <div>
+          <h1 className="text-3xl font-serif text-white mb-2">Order Vault</h1>
+          <p className="text-gray-400 tracking-wide text-sm">Monitor and manage royal dining requests.</p>
+        </div>
+        
+        <div className="flex bg-[#111111] p-1 rounded-full border border-white/5">
+          {['all', 'pending', 'preparing', 'completed', 'cancelled'].map((f) => (
+            <button
+              key={f}
+              onClick={() => setFilter(f)}
+              className={`px-4 py-2 rounded-full text-[10px] font-black uppercase tracking-widest transition-all ${filter === f ? 'bg-[#FFE600] text-black' : 'text-gray-500 hover:text-white'}`}
+            >
+              {f}
+            </button>
+          ))}
+        </div>
+      </div>
+
+      <div className="bg-[#111111] border border-white/5 rounded-2xl overflow-hidden shadow-2xl">
+        <table className="w-full text-left border-collapse">
+          <thead>
+            <tr className="bg-black/50 text-gray-400 text-xs tracking-widest uppercase">
+              <th className="px-6 py-4 font-normal">Order ID</th>
+              <th className="px-6 py-4 font-normal">Customer</th>
+              <th className="px-6 py-4 font-normal">Items</th>
+              <th className="px-6 py-4 font-normal">Total</th>
+              <th className="px-6 py-4 font-normal">Status</th>
+              <th className="px-6 py-4 font-normal text-right">Actions</th>
+            </tr>
+          </thead>
+          <tbody className="text-sm">
+            {filteredOrders.map((order) => (
+              <tr key={order._id} className="border-b border-white/5 hover:bg-white/5 transition-colors group">
+                <td className="px-6 py-4 text-[#FFE600] font-black tracking-tighter">#{order._id.slice(-6).toUpperCase()}</td>
+                <td className="px-6 py-4">
+                  <div className="flex flex-col">
+                    <span className="text-gray-200 font-medium">{order.customerName}</span>
+                    <span className="text-gray-500 text-[10px]">{order.phone}</span>
+                  </div>
+                </td>
+                <td className="px-6 py-4 text-gray-400">{order.items.length} dishes</td>
+                <td className="px-6 py-4 text-white font-black">${order.totalAmount.toFixed(2)}</td>
+                <td className="px-6 py-4">
+                  <span className={`px-3 py-1 rounded-full text-[9px] font-black uppercase tracking-widest ${
+                    order.status === 'completed' ? 'bg-emerald-500/10 text-emerald-500' :
+                    order.status === 'pending' ? 'bg-amber-500/10 text-amber-500' :
+                    order.status === 'preparing' ? 'bg-blue-500/10 text-blue-500' :
+                    'bg-rose-500/10 text-rose-500'
+                  }`}>
+                    {order.status}
+                  </span>
+                </td>
+                <td className="px-6 py-4 text-right">
+                  <button onClick={() => setSelectedOrder(order)} className="p-2 text-gray-400 hover:text-white transition-colors">
+                    <Eye size={18} />
+                  </button>
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+
+      {/* Order Detail Modal */}
+      {selectedOrder && (
+        <div className="fixed inset-0 z-[100] flex items-center justify-center p-4">
+          <div className="absolute inset-0 bg-black/90 backdrop-blur-md" onClick={() => setSelectedOrder(null)}></div>
+          <div className="bg-[#111111] border border-white/5 rounded-[40px] w-full max-w-2xl p-10 relative shadow-2xl overflow-hidden">
+            <button onClick={() => setSelectedOrder(null)} className="absolute top-8 right-8 text-white/20 hover:text-white"><X size={24} /></button>
+            <h2 className="text-2xl font-serif text-white mb-6 uppercase tracking-tight">Order #{selectedOrder._id.slice(-6).toUpperCase()}</h2>
+            
+            <div className="grid grid-cols-2 gap-8 mb-8">
+              <div>
+                <p className="text-[10px] font-black uppercase text-white/20 tracking-widest mb-2">Customer Details</p>
+                <div className="bg-white/5 p-4 rounded-2xl">
+                   <p className="text-white font-bold">{selectedOrder.customerName}</p>
+                   <p className="text-gray-400 text-xs">{selectedOrder.phone}</p>
+                   <p className="text-gray-400 text-xs mt-2">{selectedOrder.address}</p>
+                </div>
+              </div>
+              <div>
+                <p className="text-[10px] font-black uppercase text-white/20 tracking-widest mb-2">Status Control</p>
+                <div className="flex flex-wrap gap-2">
+                  {['pending', 'preparing', 'completed', 'cancelled'].map(s => (
+                    <button 
+                      key={s} 
+                      onClick={() => updateStatus(selectedOrder._id, s)}
+                      className={`px-3 py-2 rounded-xl text-[9px] font-black uppercase tracking-widest border transition-all ${selectedOrder.status === s ? 'bg-white text-black border-white' : 'border-white/10 text-white/40 hover:border-white/20'}`}
+                    >
+                      {s}
+                    </button>
+                  ))}
+                </div>
+              </div>
+            </div>
+
+            <p className="text-[10px] font-black uppercase text-white/20 tracking-widest mb-4">Items Summary</p>
+            <div className="space-y-3 max-h-60 overflow-y-auto mb-8 pr-2 custom-scrollbar">
+              {selectedOrder.items.map((item, idx) => (
+                <div key={idx} className="flex justify-between items-center bg-white/5 p-4 rounded-2xl">
+                  <div className="flex items-center gap-4">
+                    <span className="text-[#FFE600] font-black text-xs">{item.quantity}x</span>
+                    <span className="text-white text-sm font-bold uppercase tracking-tight">{item.name}</span>
+                  </div>
+                  <span className="text-gray-400 text-sm font-black">${(item.price * item.quantity).toFixed(2)}</span>
+                </div>
+              ))}
+            </div>
+
+            <div className="flex justify-between items-center pt-6 border-t border-white/5">
+               <span className="text-white font-serif text-xl uppercase">Total Amount</span>
+               <span className="text-3xl font-black text-[#FFE600]">${selectedOrder.totalAmount.toFixed(2)}</span>
+            </div>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+};
+
+export default Orders;

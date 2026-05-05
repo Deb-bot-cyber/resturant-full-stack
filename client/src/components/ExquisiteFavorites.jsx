@@ -1,2 +1,124 @@
 import { API_URL } from '../utils/api';
-import React, { useState, useEffect } from 'react'; import { Star, Plus } from 'lucide-react'; import axios from 'axios'; import { useCart } from '../context/CartContext'; import { useAuth } from '../context/AuthContext'; import { motion, AnimatePresence } from 'framer-motion';  const ExquisiteFavorites = () => {   const [activeCategory, setActiveCategory] = useState('');   const [menuItems, setMenuItems] = useState([]);   const [categories, setCategories] = useState([]);   const [loading, setLoading] = useState(true);      const { addToCart } = useCart();   const { user, openAuthModal } = useAuth();    useEffect(() => {     fetchData();   }, []);    const fetchData = async () => {     try {       const [menuRes, catRes] = await Promise.all([         axios.get('${API_URL}/api/menu'),         axios.get('${API_URL}/api/categories')       ]);       setMenuItems(menuRes.data);       setCategories(catRes.data);       if (catRes.data.length > 0) {         setActiveCategory(catRes.data[0].name);       }       setLoading(false);     } catch (err) {       console.error(err);       setLoading(false);     }   };    const filteredItems = menuItems.filter(item => item.category === activeCategory);    return (     <section id="menu" className="bg-[#FFE600]">       <div className="bg-[#121212] rounded-[40px] py-24 px-6 font-sans mx-auto transition-all duration-700">         <div className="container mx-auto max-w-7xl">           {/* Header */}           <div className="flex flex-col md:flex-row justify-between items-start md:items-end mb-16 gap-8">             <div className="max-w-2xl">               <motion.h2                  initial={{ opacity: 0, y: 20 }}                 whileInView={{ opacity: 1, y: 0 }}                 className="text-5xl md:text-6xl font-black text-white mb-6 leading-tight uppercase"               >                 Indulge in our<br />Royal Classics               </motion.h2>               <motion.p                  initial={{ opacity: 0, y: 10 }}                 whileInView={{ opacity: 1, y: 0 }}                 className="text-white/60 text-sm md:text-base max-w-md font-bold uppercase tracking-widest"               >                 A curated selection of India's most beloved flavors, from the clay ovens of Punjab to the royal kitchens of Lucknow.               </motion.p>             </div>             <button className="bg-[#FFE600] text-black px-6 py-2.5 rounded-full text-xs font-[900] uppercase tracking-widest hover:bg-white transition-all shadow-[0_4px_20px_rgba(255,230,0,0.2)]">               Book Online             </button>           </div>            {/* Categories Navigation */}           <div className="flex flex-wrap gap-4 md:gap-8 mb-16 border-b border-white/5 pb-6">             {categories.map((cat) => (               <button                 key={cat._id}                 onClick={() => setActiveCategory(cat.name)}                 className="group relative py-2"               >                 <span className={`text-[11px] font-black uppercase tracking-[0.2em] transition-all duration-500 ${                   activeCategory === cat.name ? 'text-[#FFE600]' : 'text-white/30 group-hover:text-white/60'                 }`}>                   {cat.name}                 </span>                 {activeCategory === cat.name && (                   <motion.div                      layoutId="activeTab"                     className="absolute -bottom-[25px] left-0 w-full h-[3px] bg-[#FFE600] z-10"                   />                 )}               </button>             ))}           </div>            {/* Grid */}           <div className="min-h-[400px]">             <AnimatePresence mode='wait'>               <motion.div                  key={activeCategory}                 initial={{ opacity: 0, x: 20 }}                 animate={{ opacity: 1, x: 0 }}                 exit={{ opacity: 0, x: -20 }}                 transition={{ duration: 0.5 }}                 className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-12"               >                 {filteredItems.map((dish) => (                   <div key={dish._id} className="group cursor-pointer">                     <div className="relative aspect-square overflow-hidden rounded-[32px] mb-8 shadow-2xl bg-[#1A1A1A]">                       {dish.image ? (                         <img                            src={dish.image}                            alt={dish.name}                            className="w-full h-full object-cover transition-all duration-700 group-hover:scale-110"                         />                       ) : (                         <div className="w-full h-full flex items-center justify-center">                            <span className="text-white/10 text-6xl font-black">{dish.name.charAt(0)}</span>                         </div>                       )}                       <div className="absolute inset-0 bg-gradient-to-t from-black/60 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-500" />                     </div>                                          <div className="flex justify-between items-start mb-3">                       <h3 className="text-2xl font-black text-white group-hover:text-[#FFE600] transition-colors leading-tight max-w-[70%]">                         {dish.name}                       </h3>                       <span className="text-[#FFE600] font-black text-lg tracking-tight">                         {dish.price}                       </span>                     </div>                                          <p className="text-white/40 text-xs leading-relaxed mb-6 line-clamp-2 font-medium">                       {dish.description || 'Discover a symphony of tastes with our handpicked favorites that promise to delight your senses'}                     </p>                      <div className="flex justify-between items-center pt-2">                       <div className="flex gap-1">                         {[...Array(5)].map((_, i) => (                           <Star                              key={i}                              size={14}                              className="fill-[#FFE600] text-[#FFE600]"                            />                         ))}                       </div>                       <button                          onClick={(e) => {                           e.stopPropagation();                           if (!user) {                             openAuthModal();                           } else {                             addToCart(dish);                           }                         }}                         className="bg-[#FFE600] text-black px-6 py-2.5 rounded-full text-[10px] font-black uppercase tracking-widest hover:bg-white transition-all flex items-center gap-2 shadow-lg active:scale-95"                       >                         <Plus size={14} strokeWidth={3} /> Add to Cart                       </button>                     </div>                   </div>                 ))}               </motion.div>             </AnimatePresence>             {filteredItems.length === 0 && !loading && (               <div className="py-20 text-center">                 <p className="text-white/20 uppercase tracking-widest text-xs font-black">No items in this category</p>               </div>             )}           </div>         </div>       </div>     </section>   ); };  export default ExquisiteFavorites; 
+import React, { useState, useEffect } from 'react';
+import { motion } from 'framer-motion';
+import { Star, Plus } from 'lucide-react';
+import axios from 'axios';
+import { useCart } from '../context/CartContext';
+
+const ExquisiteFavorites = () => {
+  const [items, setItems] = useState([]);
+  const [categories, setCategories] = useState([]);
+  const [activeCategory, setActiveCategory] = useState('all');
+  const { addToCart } = useCart();
+
+  useEffect(() => {
+    fetchData();
+  }, []);
+
+  const fetchData = async () => {
+    try {
+      const [menuRes, catRes] = await Promise.all([
+        axios.get(`${API_URL}/api/menu`),
+        axios.get(`${API_URL}/api/categories`)
+      ]);
+      // Filter for favorite items or just top items
+      setItems(menuRes.data.filter(i => i.isFavorite).slice(0, 8));
+      setCategories(catRes.data);
+    } catch (err) {
+      console.error(err);
+    }
+  };
+
+  const filteredItems = activeCategory === 'all' 
+    ? items 
+    : items.filter(item => item.category?._id === activeCategory || item.category === activeCategory);
+
+  return (
+    <section id="menu" className="bg-[#0A0A0A] py-24 md:py-32 font-sans">
+      <div className="container mx-auto px-6 max-w-7xl">
+        {/* Header */}
+        <div className="flex flex-col md:flex-row justify-between items-start md:items-end mb-16 gap-8">
+          <div>
+            <motion.h2 
+              initial={{ opacity: 0, y: 20 }}
+              whileInView={{ opacity: 1, y: 0 }}
+              className="text-5xl md:text-7xl font-serif font-black text-white mb-6 leading-none uppercase tracking-tighter"
+            >
+              Royal<br />Classics
+            </motion.h2>
+            <motion.p 
+              initial={{ opacity: 0, y: 10 }}
+              whileInView={{ opacity: 1, y: 0 }}
+              className="text-white/40 text-sm md:text-base max-w-md font-bold uppercase tracking-[0.2em]"
+            >
+              A curated selection of India's most beloved flavors, from the clay ovens of Punjab to the royal kitchens of Lucknow.
+            </motion.p>
+          </div>
+          
+          <div className="flex flex-wrap gap-2">
+            <button 
+              onClick={() => setActiveCategory('all')}
+              className={`px-6 py-2.5 rounded-full text-[10px] font-black uppercase tracking-widest transition-all ${activeCategory === 'all' ? 'bg-[#FFE600] text-black' : 'text-white/40 hover:text-white border border-white/10'}`}
+            >
+              All Specialties
+            </button>
+            {categories.slice(0, 4).map(cat => (
+              <button 
+                key={cat._id}
+                onClick={() => setActiveCategory(cat._id)}
+                className={`px-6 py-2.5 rounded-full text-[10px] font-black uppercase tracking-widest transition-all ${activeCategory === cat._id ? 'bg-[#FFE600] text-black' : 'text-white/40 hover:text-white border border-white/10'}`}
+              >
+                {cat.name}
+              </button>
+            ))}
+          </div>
+        </div>
+
+        {/* Grid */}
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-8">
+          {filteredItems.map((item, index) => (
+            <motion.div 
+              key={item._id}
+              initial={{ opacity: 0, y: 30 }}
+              whileInView={{ opacity: 1, y: 0 }}
+              transition={{ delay: index * 0.1 }}
+              className="group relative bg-[#111111] border border-white/5 rounded-[40px] p-6 hover:border-[#FFE600]/30 transition-all duration-500 hover:-translate-y-2 shadow-2xl"
+            >
+              <div className="relative aspect-square mb-6 rounded-[32px] overflow-hidden">
+                <img 
+                  src={item.image} 
+                  alt={item.name} 
+                  className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-110 grayscale group-hover:grayscale-0"
+                />
+                <div className="absolute top-4 right-4 flex gap-2">
+                   <div className="bg-black/80 backdrop-blur-md p-2 rounded-full text-[#FFE600]">
+                      <Star size={12} fill="currentColor" />
+                   </div>
+                </div>
+              </div>
+
+              <div className="space-y-4">
+                <div className="flex justify-between items-start gap-2">
+                   <h3 className="text-white text-lg font-black uppercase tracking-tight leading-tight group-hover:text-[#FFE600] transition-colors">{item.name}</h3>
+                   <span className="text-[#FFE600] font-black text-lg tracking-tighter">${item.price}</span>
+                </div>
+                <p className="text-gray-500 text-xs font-medium leading-relaxed line-clamp-2 uppercase tracking-wide">
+                   {item.description}
+                </p>
+                <button 
+                  onClick={() => addToCart(item)}
+                  className="w-full bg-white/5 text-white py-4 rounded-2xl flex items-center justify-center gap-3 hover:bg-[#FFE600] hover:text-black transition-all group/btn"
+                >
+                  <Plus size={16} className="group-hover/btn:rotate-90 transition-transform duration-500" />
+                  <span className="text-[10px] font-black uppercase tracking-[0.2em]">Add To Tray</span>
+                </button>
+              </div>
+            </motion.div>
+          ))}
+        </div>
+      </div>
+    </section>
+  );
+};
+
+export default ExquisiteFavorites;

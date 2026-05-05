@@ -1,2 +1,203 @@
 import { API_URL } from '../../utils/api';
-import React, { useState, useEffect } from 'react'; import axios from 'axios'; import { Calendar, Plus, Trash2, Edit2, Check, X, MapPin, Clock, DollarSign } from 'lucide-react'; import { motion, AnimatePresence } from 'framer-motion';  const EventsManager = () => {   const [events, setEvents] = useState([]);   const [isModalOpen, setIsModalOpen] = useState(false);   const [editingEvent, setEditingEvent] = useState(null);   const [formData, setFormData] = useState({     title: '',     description: '',     date: '',     time: '',     location: '',     image: '',     price: '',     maxGuests: 50,     isPublished: true   });    useEffect(() => {     fetchEvents();   }, []);    const fetchEvents = async () => {     try {       const res = await axios.get('${API_URL}/api/events/all');       setEvents(res.data);     } catch (err) {       console.error(err);     }   };    const handleSubmit = async (e) => {     e.preventDefault();     try {       if (editingEvent) {         await axios.put(`${API_URL}/api/events/${editingEvent._id}`, formData);       } else {         await axios.post('${API_URL}/api/events', formData);       }       setIsModalOpen(false);       setEditingEvent(null);       setFormData({         title: '',         description: '',         date: '',         time: '',         location: '',         image: '',         price: '',         maxGuests: 50,         isPublished: true       });       fetchEvents();     } catch (err) {       console.error(err);     }   };    const deleteEvent = async (id) => {     if (window.confirm('Delete this event?')) {       try {         await axios.delete(`${API_URL}/api/events/${id}`);         fetchEvents();       } catch (err) {         console.error(err);       }     }   };    const openEditModal = (event) => {     setEditingEvent(event);     setFormData({       title: event.title,       description: event.description,       date: event.date,       time: event.time,       location: event.location,       image: event.image,       price: event.price,       maxGuests: event.maxGuests,       isPublished: event.isPublished     });     setIsModalOpen(true);   };    return (     <div className="p-8">       <div className="flex justify-between items-center mb-12">         <div>           <h1 className="text-4xl font-black text-white tracking-tighter uppercase">Events Master</h1>           <p className="text-white/40 text-sm mt-1 uppercase tracking-widest">Manage your artisan experiences</p>         </div>         <button            onClick={() => {             setEditingEvent(null);             setFormData({               title: '',               description: '',               date: '',               time: '',               location: '',               image: '',               price: '',               maxGuests: 50,               isPublished: true             });             setIsModalOpen(true);           }}           className="bg-[#FFE600] text-black px-8 py-4 rounded-full font-black uppercase tracking-widest text-xs flex items-center gap-3 hover:bg-white transition-all shadow-xl"         >           <Plus size={18} strokeWidth={3} /> Create Event         </button>       </div>        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">         {events.map((event) => (           <div key={event._id} className="bg-[#111111] border border-white/5 rounded-[32px] overflow-hidden group hover:border-[#FFE600]/30 transition-all shadow-2xl">             <div className="relative aspect-video">               <img src={event.image} alt={event.title} className="w-full h-full object-cover opacity-60 group-hover:opacity-100 transition-opacity" />               <div className="absolute top-4 right-4 flex gap-2">                 <button onClick={() => openEditModal(event)} className="bg-white/10 backdrop-blur-md p-3 rounded-full text-white hover:bg-[#FFE600] hover:text-black transition-all">                   <Edit2 size={16} />                 </button>                 <button onClick={() => deleteEvent(event._id)} className="bg-white/10 backdrop-blur-md p-3 rounded-full text-white hover:bg-rose-500 transition-all">                   <Trash2 size={16} />                 </button>               </div>               <div className="absolute bottom-4 left-4">                  <span className={`px-4 py-1.5 rounded-full text-[10px] font-black uppercase tracking-widest ${event.isPublished ? 'bg-emerald-500 text-black' : 'bg-white/20 text-white'}`}>                    {event.isPublished ? 'Live' : 'Draft'}                  </span>               </div>             </div>             <div className="p-8">               <h3 className="text-xl font-black text-white mb-2 uppercase tracking-tight">{event.title}</h3>               <p className="text-white/40 text-xs line-clamp-2 mb-6 font-medium leading-relaxed">{event.description}</p>                              <div className="space-y-3">                  <div className="flex items-center gap-3 text-[10px] font-black text-[#FFE600] uppercase tracking-widest">                     <Calendar size={14} />                     <span>{new Date(event.date).toLocaleDateString()} at {event.time}</span>                  </div>                  <div className="flex items-center gap-3 text-[10px] font-black text-white/30 uppercase tracking-widest">                     <MapPin size={14} />                     <span>{event.location}</span>                  </div>                  <div className="flex items-center gap-3 text-[10px] font-black text-white/30 uppercase tracking-widest">                     <DollarSign size={14} />                     <span>{event.price} Entry</span>                  </div>               </div>             </div>           </div>         ))}       </div>        <AnimatePresence>         {isModalOpen && (           <div className="fixed inset-0 z-[200] flex items-center justify-center p-4">             <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} onClick={() => setIsModalOpen(false)} className="absolute inset-0 bg-black/95 backdrop-blur-xl" />             <motion.div initial={{ scale: 0.9, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} exit={{ scale: 0.9, opacity: 0 }} className="bg-[#1A1A1A] border border-white/10 rounded-[40px] w-full max-w-2xl p-10 relative z-10 overflow-y-auto max-h-[90vh]">               <h2 className="text-3xl font-black text-white mb-8 uppercase tracking-tighter">                 {editingEvent ? 'Edit Event' : 'New Experience'}               </h2>                              <form onSubmit={handleSubmit} className="space-y-6">                 <div className="grid grid-cols-1 md:grid-cols-2 gap-6">                   <div className="space-y-2">                     <label className="text-[10px] font-black uppercase tracking-widest text-white/30 ml-4">Event Title</label>                     <input                        required                        type="text"                        value={formData.title}                        onChange={e => setFormData({...formData, title: e.target.value})}                        className="w-full bg-white/[0.03] border border-white/5 rounded-full px-6 py-4 text-white focus:border-[#FFE600] outline-none transition-all font-bold"                     />                   </div>                   <div className="space-y-2">                     <label className="text-[10px] font-black uppercase tracking-widest text-white/30 ml-4">Banner URL</label>                     <input                        required                        type="text"                        value={formData.image}                        onChange={e => setFormData({...formData, image: e.target.value})}                        className="w-full bg-white/[0.03] border border-white/5 rounded-full px-6 py-4 text-white focus:border-[#FFE600] outline-none transition-all font-bold"                     />                   </div>                   <div className="space-y-2">                     <label className="text-[10px] font-black uppercase tracking-widest text-white/30 ml-4">Date</label>                     <input                        required                        type="date"                        value={formData.date}                        onChange={e => setFormData({...formData, date: e.target.value})}                        className="w-full bg-white/[0.03] border border-white/5 rounded-full px-6 py-4 text-white focus:border-[#FFE600] outline-none transition-all font-bold"                     />                   </div>                   <div className="space-y-2">                     <label className="text-[10px] font-black uppercase tracking-widest text-white/30 ml-4">Time</label>                     <input                        required                        type="time"                        value={formData.time}                        onChange={e => setFormData({...formData, time: e.target.value})}                        className="w-full bg-white/[0.03] border border-white/5 rounded-full px-6 py-4 text-white focus:border-[#FFE600] outline-none transition-all font-bold"                     />                   </div>                   <div className="space-y-2">                     <label className="text-[10px] font-black uppercase tracking-widest text-white/30 ml-4">Location</label>                     <input                        required                        type="text"                        value={formData.location}                        onChange={e => setFormData({...formData, location: e.target.value})}                        className="w-full bg-white/[0.03] border border-white/5 rounded-full px-6 py-4 text-white focus:border-[#FFE600] outline-none transition-all font-bold"                     />                   </div>                   <div className="space-y-2">                     <label className="text-[10px] font-black uppercase tracking-widest text-white/30 ml-4">Price / Entry</label>                     <input                        required                        type="text"                        value={formData.price}                        onChange={e => setFormData({...formData, price: e.target.value})}                        className="w-full bg-white/[0.03] border border-white/5 rounded-full px-6 py-4 text-white focus:border-[#FFE600] outline-none transition-all font-bold"                       placeholder="$0.00 or Free"                     />                   </div>                 </div>                  <div className="space-y-2">                   <label className="text-[10px] font-black uppercase tracking-widest text-white/30 ml-4">Experience Description</label>                   <textarea                      required                      rows={4}                      value={formData.description}                      onChange={e => setFormData({...formData, description: e.target.value})}                      className="w-full bg-white/[0.03] border border-white/5 rounded-[32px] px-6 py-4 text-white focus:border-[#FFE600] outline-none transition-all font-bold resize-none"                   />                 </div>                  <div className="flex items-center gap-4 py-4">                    <button                      type="button"                     onClick={() => setFormData({...formData, isPublished: !formData.isPublished})}                     className={`px-6 py-3 rounded-full text-[10px] font-black uppercase tracking-widest transition-all ${formData.isPublished ? 'bg-emerald-500 text-black' : 'bg-white/10 text-white'}`}                    >                      {formData.isPublished ? 'Status: Live' : 'Status: Draft'}                    </button>                 </div>                  <div className="flex gap-4 pt-4">                   <button type="submit" className="flex-1 bg-[#FFE600] text-black font-black py-5 rounded-full uppercase tracking-widest text-xs hover:bg-white transition-all shadow-2xl">                     {editingEvent ? 'Update Experience' : 'Launch Event'}                   </button>                   <button type="button" onClick={() => setIsModalOpen(false)} className="px-10 bg-white/5 text-white font-black rounded-full uppercase tracking-widest text-xs hover:bg-white/10 transition-all">                     Cancel                   </button>                 </div>               </form>             </motion.div>           </div>         )}       </AnimatePresence>     </div>   ); };  export default EventsManager;
+import React, { useState, useEffect } from 'react';
+import axios from 'axios';
+import { Calendar, Plus, Trash2, Edit2, Check, X, MapPin, Clock, DollarSign } from 'lucide-react';
+
+const EventsManager = () => {
+  const [events, setEvents] = useState([]);
+  const [isModalOpen, setIsModalOpen] = useState(false);
+  const [editingEvent, setEditingEvent] = useState(null);
+  const [formData, setFormData] = useState({
+    title: '',
+    description: '',
+    date: '',
+    time: '',
+    location: '',
+    price: '',
+    image: '',
+    capacity: 0
+  });
+
+  useEffect(() => {
+    fetchEvents();
+  }, []);
+
+  const fetchEvents = async () => {
+    try {
+      const res = await axios.get(`${API_URL}/api/events/all`);
+      setEvents(res.data);
+    } catch (err) {
+      console.error('Error fetching events:', err);
+    }
+  };
+
+  const handleSubmit = async (e) => {
+    e.preventDefault();
+    try {
+      if (editingEvent) {
+        await axios.put(`${API_URL}/api/events/${editingEvent._id}`, formData);
+      } else {
+        await axios.post(`${API_URL}/api/events`, formData);
+      }
+      setIsModalOpen(false);
+      setEditingEvent(null);
+      resetForm();
+      fetchEvents();
+    } catch (err) {
+      console.error('Error saving event:', err);
+    }
+  };
+
+  const handleEdit = (event) => {
+    setEditingEvent(event);
+    setFormData({
+      title: event.title,
+      description: event.description,
+      date: event.date.split('T')[0],
+      time: event.time,
+      location: event.location,
+      price: event.price,
+      image: event.image,
+      capacity: event.capacity
+    });
+    setIsModalOpen(true);
+  };
+
+  const handleDelete = async (id) => {
+    if (window.confirm('Are you sure you want to delete this event?')) {
+      try {
+        await axios.delete(`${API_URL}/api/events/${id}`);
+        fetchEvents();
+      } catch (err) {
+        console.error('Error deleting event:', err);
+      }
+    }
+  };
+
+  const resetForm = () => {
+    setFormData({
+      title: '',
+      description: '',
+      date: '',
+      time: '',
+      location: '',
+      price: '',
+      image: '',
+      capacity: 0
+    });
+  };
+
+  return (
+    <div className="space-y-12 pb-20">
+      <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-6">
+        <div>
+          <h1 className="text-4xl font-serif text-white mb-2 tracking-tight">Events & Festivals</h1>
+          <p className="text-gray-400 tracking-widest text-xs uppercase font-black">Manage royal cultural experiences</p>
+        </div>
+        <button 
+          onClick={() => { setEditingEvent(null); resetForm(); setIsModalOpen(true); }}
+          className="bg-[#FFE600] text-black px-8 py-4 rounded-full font-black uppercase tracking-widest text-[10px] flex items-center gap-2 hover:bg-white transition-all shadow-xl"
+        >
+          <Plus size={16} /> Add Festival
+        </button>
+      </div>
+
+      <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-8">
+        {events.map((event) => (
+          <div key={event._id} className="bg-[#111111] border border-white/5 rounded-[40px] overflow-hidden group hover:border-white/10 transition-all shadow-2xl">
+            <div className="relative aspect-video">
+              <img src={event.image} alt={event.title} className="w-full h-full object-cover grayscale group-hover:grayscale-0 transition-all duration-700" />
+              <div className="absolute top-6 left-6">
+                 <div className="bg-black/80 backdrop-blur-md px-4 py-2 rounded-full border border-white/10">
+                    <span className="text-[10px] font-black uppercase tracking-widest text-white">{new Date(event.date).toLocaleDateString()}</span>
+                 </div>
+              </div>
+            </div>
+            
+            <div className="p-8">
+              <h3 className="text-2xl font-serif text-white mb-4 uppercase tracking-tight">{event.title}</h3>
+              <p className="text-gray-500 text-xs line-clamp-2 mb-6 font-medium leading-relaxed">{event.description}</p>
+              
+              <div className="space-y-3 mb-8">
+                <div className="flex items-center gap-3 text-[10px] font-black uppercase tracking-widest text-gray-400">
+                  <Clock size={14} className="text-[#FFE600]" /> {event.time}
+                </div>
+                <div className="flex items-center gap-3 text-[10px] font-black uppercase tracking-widest text-gray-400">
+                  <MapPin size={14} className="text-[#FFE600]" /> {event.location}
+                </div>
+                <div className="flex items-center gap-3 text-[10px] font-black uppercase tracking-widest text-gray-400">
+                  <DollarSign size={14} className="text-[#FFE600]" /> {event.price}
+                </div>
+              </div>
+
+              <div className="flex gap-4">
+                <button onClick={() => handleEdit(event)} className="flex-1 bg-white/5 text-white py-3 rounded-2xl hover:bg-white hover:text-black transition-all text-[10px] font-black uppercase tracking-widest border border-white/5">
+                  Edit
+                </button>
+                <button onClick={() => handleDelete(event._id)} className="p-3 bg-rose-500/10 text-rose-500 rounded-2xl hover:bg-rose-500 hover:text-white transition-all border border-rose-500/10">
+                  <Trash2 size={18} />
+                </button>
+              </div>
+            </div>
+          </div>
+        ))}
+      </div>
+
+      {isModalOpen && (
+        <div className="fixed inset-0 z-[100] flex items-center justify-center p-4">
+          <div className="absolute inset-0 bg-black/95 backdrop-blur-xl" onClick={() => setIsModalOpen(false)}></div>
+          <div className="bg-[#111111] border border-white/5 rounded-[50px] w-full max-w-2xl p-12 relative shadow-[0_50px_100px_rgba(0,0,0,0.8)] max-h-[90vh] overflow-y-auto">
+            <button onClick={() => setIsModalOpen(false)} className="absolute top-10 right-10 text-white/20 hover:text-white transition-colors">
+              <X size={24} />
+            </button>
+            <h2 className="text-4xl font-serif text-white mb-10 tracking-tighter uppercase">{editingEvent ? 'Refine Festival' : 'New Royal Festival'}</h2>
+            <form onSubmit={handleSubmit} className="space-y-8">
+              <div className="space-y-2">
+                <label className="text-[10px] font-black uppercase text-white/20 tracking-[0.2em] ml-6">Event Title</label>
+                <input required value={formData.title} onChange={e => setFormData({...formData, title: e.target.value})} className="w-full bg-white/[0.03] border border-white/5 rounded-full px-8 py-5 text-white uppercase text-xs font-black focus:border-[#FFE600] outline-none" placeholder="E.G. SITAR NIGHT" />
+              </div>
+
+              <div className="grid grid-cols-2 gap-8">
+                <div className="space-y-2">
+                  <label className="text-[10px] font-black uppercase text-white/20 tracking-[0.2em] ml-6">Date</label>
+                  <input required type="date" value={formData.date} onChange={e => setFormData({...formData, date: e.target.value})} className="w-full bg-white/[0.03] border border-white/5 rounded-full px-8 py-5 text-white text-xs font-black focus:border-[#FFE600] outline-none" />
+                </div>
+                <div className="space-y-2">
+                  <label className="text-[10px] font-black uppercase text-white/20 tracking-[0.2em] ml-6">Time</label>
+                  <input required type="text" value={formData.time} onChange={e => setFormData({...formData, time: e.target.value})} className="w-full bg-white/[0.03] border border-white/5 rounded-full px-8 py-5 text-white text-xs font-black focus:border-[#FFE600] outline-none" placeholder="19:00 - 22:00" />
+                </div>
+              </div>
+
+              <div className="grid grid-cols-2 gap-8">
+                <div className="space-y-2">
+                  <label className="text-[10px] font-black uppercase text-white/20 tracking-[0.2em] ml-6">Price Entry</label>
+                  <input required type="text" value={formData.price} onChange={e => setFormData({...formData, price: e.target.value})} className="w-full bg-white/[0.03] border border-white/5 rounded-full px-8 py-5 text-white text-xs font-black focus:border-[#FFE600] outline-none" placeholder="FREE / $50" />
+                </div>
+                <div className="space-y-2">
+                  <label className="text-[10px] font-black uppercase text-white/20 tracking-[0.2em] ml-6">Location</label>
+                  <input required type="text" value={formData.location} onChange={e => setFormData({...formData, location: e.target.value})} className="w-full bg-white/[0.03] border border-white/5 rounded-full px-8 py-5 text-white text-xs font-black focus:border-[#FFE600] outline-none" placeholder="MAIN LOUNGE" />
+                </div>
+              </div>
+
+              <div className="space-y-2">
+                <label className="text-[10px] font-black uppercase text-white/20 tracking-[0.2em] ml-6">Description</label>
+                <textarea required value={formData.description} onChange={e => setFormData({...formData, description: e.target.value})} className="w-full bg-white/[0.03] border border-white/5 rounded-[32px] px-8 py-6 text-white text-xs font-medium focus:border-[#FFE600] outline-none h-32 leading-relaxed" placeholder="Tell the story of this event..." />
+              </div>
+
+              <div className="space-y-2">
+                <label className="text-[10px] font-black uppercase text-white/20 tracking-[0.2em] ml-6">Image URL</label>
+                <input required value={formData.image} onChange={e => setFormData({...formData, image: e.target.value})} className="w-full bg-white/[0.03] border border-white/5 rounded-full px-8 py-5 text-white text-xs font-medium focus:border-[#FFE600] outline-none" placeholder="HTTPS://..." />
+              </div>
+
+              <button type="submit" className="w-full bg-[#FFE600] text-black font-black py-6 rounded-full uppercase tracking-[0.3em] text-[11px] hover:bg-white transition-all shadow-2xl mt-4">
+                {editingEvent ? 'Seal Changes' : 'Announce Festival'}
+              </button>
+            </form>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+};
+
+export default EventsManager;

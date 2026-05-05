@@ -1,2 +1,228 @@
 import { API_URL } from '../../utils/api';
-import React, { useState, useEffect } from 'react'; import axios from 'axios'; import { ShoppingBag, Search, Plus, Minus, Trash2, User, MapPin } from 'lucide-react'; import { useAuth } from '../../context/AuthContext';  const POS = () => {   const { user } = useAuth();   const [categories, setCategories] = useState([]);   const [activeCategory, setActiveCategory] = useState('All');   const [menuItems, setMenuItems] = useState([]);   const [search, setSearch] = useState('');      // POS Cart State   const [cart, setCart] = useState([]);   const [customerName, setCustomerName] = useState('Walk-in');   const [tableNumber, setTableNumber] = useState('Takeaway');   const [isSubmitting, setIsSubmitting] = useState(false);    useEffect(() => {     fetchData();   }, []);    const fetchData = async () => {     try {       const [menuRes, catRes] = await Promise.all([         axios.get('${API_URL}/api/menu'),         axios.get('${API_URL}/api/categories')       ]);       setMenuItems(menuRes.data.filter(item => item.status === 'Available'));       setCategories(catRes.data);     } catch (err) {       console.error(err);     }   };    const filteredItems = menuItems.filter(item => {     const matchesCategory = activeCategory === 'All' || item.category === activeCategory;     const matchesSearch = item.name.toLowerCase().includes(search.toLowerCase());     return matchesCategory && matchesSearch;   });    const addToCart = (product) => {     setCart(prev => {       const existing = prev.find(item => item._id === product._id);       if (existing) {         return prev.map(item =>            item._id === product._id ? { ...item, quantity: item.quantity + 1 } : item         );       }       return [...prev, { ...product, quantity: 1 }];     });   };    const updateQuantity = (id, delta) => {     setCart(prev => prev.map(item => {       if (item._id === id) {         const newQ = item.quantity + delta;         return newQ > 0 ? { ...item, quantity: newQ } : item;       }       return item;     }).filter(item => item.quantity > 0));   };    const removeFromCart = (id) => {     setCart(prev => prev.filter(item => item._id !== id));   };    const totalPrice = cart.reduce((sum, item) => {     const numericPrice = parseFloat(item.price.toString().replace(/[^0-9.-]+/g,""));     return sum + (numericPrice * item.quantity);   }, 0);    const handleCheckout = async () => {     if (cart.length === 0) return alert('Cart is empty!');     setIsSubmitting(true);          try {       const orderData = {         userId: user ? user._id : '000000000000000000000000', // Admin override if no specific user         customerName,         tableNumber,         items: cart.map(item => ({           menuItem: item._id,           name: item.name,           quantity: item.quantity,           price: item.price         })),         total: `$${totalPrice.toFixed(2)}`,         status: 'Preparing', // Assume walk-in goes straight to preparing         prepTime: 15 // Default prep time       };        await axios.post('${API_URL}/api/orders', orderData);              alert('Order Placed Successfully!');       setCart([]);       setCustomerName('Walk-in');       setTableNumber('Takeaway');     } catch (err) {       console.error(err);       alert('Failed to place order.');     } finally {       setIsSubmitting(false);     }   };    return (     <div className="flex h-[calc(100vh-8rem)] gap-6 -m-4">       {/* Left side: Products Grid */}       <div className="flex-1 flex flex-col bg-[#111111] rounded-2xl border border-white/5 overflow-hidden">         {/* Top Bar */}         <div className="p-4 border-b border-white/5 flex gap-4">           <div className="relative flex-1">             <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-500" size={18} />             <input                type="text"                placeholder="Search products..."                value={search}               onChange={(e) => setSearch(e.target.value)}               className="w-full bg-black border border-white/10 rounded-xl pl-10 pr-4 py-3 text-white focus:outline-none focus:border-[#D4AF37] text-sm"             />           </div>         </div>                  {/* Categories */}         <div className="p-4 border-b border-white/5 flex gap-2 overflow-x-auto hide-scrollbar">           <button              onClick={() => setActiveCategory('All')}             className={`px-6 py-2 rounded-full text-xs font-bold tracking-widest uppercase whitespace-nowrap transition-colors ${               activeCategory === 'All' ? 'bg-[#D4AF37] text-black' : 'bg-white/5 text-gray-400 hover:bg-white/10'             }`}           >             All           </button>           {categories.map(cat => (             <button                key={cat._id}               onClick={() => setActiveCategory(cat.name)}               className={`px-6 py-2 rounded-full text-xs font-bold tracking-widest uppercase whitespace-nowrap transition-colors ${                 activeCategory === cat.name ? 'bg-[#D4AF37] text-black' : 'bg-white/5 text-gray-400 hover:bg-white/10'               }`}             >               {cat.name}             </button>           ))}         </div>          {/* Products */}         <div className="flex-1 overflow-y-auto p-4 hide-scrollbar">           <div className="grid grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">             {filteredItems.map(item => (               <div                  key={item._id}                  onClick={() => addToCart(item)}                 className="bg-black border border-white/5 rounded-2xl p-4 cursor-pointer hover:border-[#D4AF37]/50 transition-colors group flex flex-col"               >                 <div className="w-full aspect-square rounded-xl bg-white/5 mb-4 overflow-hidden flex items-center justify-center">                   {item.image ? (                     <img src={item.image} alt={item.name} className="w-full h-full object-cover group-hover:scale-105 transition-transform" />                   ) : (                     <span className="text-[#D4AF37]/50 text-4xl font-serif">{item.name.charAt(0)}</span>                   )}                 </div>                 <h3 className="text-white text-sm font-medium leading-tight mb-1">{item.name}</h3>                 <span className="text-[#D4AF37] font-bold text-sm mt-auto">{item.price}</span>               </div>             ))}           </div>         </div>       </div>        {/* Right side: POS Cart */}       <div className="w-[380px] bg-[#111111] rounded-2xl border border-white/5 flex flex-col overflow-hidden">         <div className="p-6 border-b border-white/5 bg-[#D4AF37]/5">           <h2 className="text-xl font-serif text-[#D4AF37] flex items-center gap-2 mb-4">             <ShoppingBag size={20} /> Current Order           </h2>           <div className="space-y-3">             <div className="flex items-center gap-3">               <User size={16} className="text-gray-500" />               <input                  type="text"                  value={customerName}                 onChange={e => setCustomerName(e.target.value)}                 placeholder="Customer Name"                 className="bg-transparent border-b border-white/20 text-white text-sm py-1 focus:outline-none focus:border-[#D4AF37] flex-1"               />             </div>             <div className="flex items-center gap-3">               <MapPin size={16} className="text-gray-500" />               <input                  type="text"                  value={tableNumber}                 onChange={e => setTableNumber(e.target.value)}                 placeholder="Table Number / Takeaway"                 className="bg-transparent border-b border-white/20 text-white text-sm py-1 focus:outline-none focus:border-[#D4AF37] flex-1"               />             </div>           </div>         </div>          <div className="flex-1 overflow-y-auto p-4 space-y-4 hide-scrollbar">           {cart.length === 0 ? (             <div className="h-full flex flex-col items-center justify-center text-gray-500">               <ShoppingBag size={48} className="opacity-20 mb-4" />               <p>Order is empty</p>             </div>           ) : (             cart.map(item => (               <div key={item._id} className="flex gap-3 bg-black/50 p-3 rounded-xl border border-white/5">                 <div className="flex-1">                   <h4 className="text-white text-sm mb-1">{item.name}</h4>                   <p className="text-[#D4AF37] text-xs">{item.price}</p>                 </div>                 <div className="flex flex-col items-end justify-between">                   <button onClick={() => removeFromCart(item._id)} className="text-gray-500 hover:text-rose-500">                     <Trash2 size={14} />                   </button>                   <div className="flex items-center gap-2 bg-white/5 rounded-lg p-1">                     <button onClick={() => updateQuantity(item._id, -1)} className="p-1 hover:bg-white/10 rounded">                       <Minus size={12} />                     </button>                     <span className="text-xs w-4 text-center">{item.quantity}</span>                     <button onClick={() => updateQuantity(item._id, 1)} className="p-1 hover:bg-white/10 rounded">                       <Plus size={12} />                     </button>                   </div>                 </div>               </div>             ))           )}         </div>          <div className="p-6 border-t border-white/5 bg-black/50">           <div className="flex justify-between items-center mb-6">             <span className="text-gray-400 uppercase tracking-widest text-xs">Total Amount</span>             <span className="text-3xl font-serif text-[#D4AF37]">${totalPrice.toFixed(2)}</span>           </div>           <button              onClick={handleCheckout}             disabled={isSubmitting || cart.length === 0}             className="w-full bg-[#D4AF37] text-black font-bold py-4 rounded-xl hover:bg-[#F3E5AB] transition-colors uppercase tracking-widest text-sm disabled:opacity-50 disabled:cursor-not-allowed shadow-[0_0_20px_rgba(212,175,55,0.2)]"           >             {isSubmitting ? 'Processing...' : 'Place Order'}           </button>         </div>       </div>     </div>   ); };  export default POS;
+import React, { useState, useEffect } from 'react';
+import axios from 'axios';
+import { ShoppingBag, Search, Plus, Minus, Trash2, User, MapPin } from 'lucide-react';
+import { useCart } from '../../context/CartContext';
+
+const POS = () => {
+  const [items, setItems] = useState([]);
+  const [categories, setCategories] = useState([]);
+  const [search, setSearch] = useState('');
+  const [selectedCategory, setSelectedCategory] = useState('all');
+  const [cart, setCart] = useState([]);
+  const [customerInfo, setCustomerInfo] = useState({ name: '', phone: '', address: 'Walk-in Customer' });
+  const [isProcessing, setIsProcessing] = useState(false);
+
+  useEffect(() => {
+    fetchData();
+  }, []);
+
+  const fetchData = async () => {
+    try {
+      const [menuRes, catRes] = await Promise.all([
+        axios.get(`${API_URL}/api/menu`),
+        axios.get(`${API_URL}/api/categories`)
+      ]);
+      setItems(menuRes.data);
+      setCategories(catRes.data);
+    } catch (err) {
+      console.error(err);
+    }
+  };
+
+  const addToCart = (item) => {
+    const existing = cart.find(i => i._id === item._id);
+    if (existing) {
+      setCart(cart.map(i => i._id === item._id ? { ...i, quantity: i.quantity + 1 } : i));
+    } else {
+      setCart([...cart, { ...item, quantity: 1 }]);
+    }
+  };
+
+  const updateQuantity = (id, delta) => {
+    setCart(cart.map(i => {
+      if (i._id === id) {
+        const newQty = Math.max(1, i.quantity + delta);
+        return { ...i, quantity: newQty };
+      }
+      return i;
+    }));
+  };
+
+  const removeFromCart = (id) => {
+    setCart(cart.filter(i => i._id !== id));
+  };
+
+  const total = cart.reduce((acc, i) => acc + (i.price * i.quantity), 0);
+
+  const handleCheckout = async () => {
+    if (cart.length === 0) return;
+    setIsProcessing(true);
+    try {
+      const orderData = {
+        items: cart.map(i => ({
+          menuItem: i._id,
+          name: i.name,
+          quantity: i.quantity,
+          price: i.price
+        })),
+        totalAmount: total,
+        customerName: customerInfo.name || 'Walk-in Customer',
+        phone: customerInfo.phone || 'N/A',
+        address: customerInfo.address,
+        status: 'completed' // POS orders are usually completed immediately
+      };
+      await axios.post(`${API_URL}/api/orders`, orderData);
+      alert('Order Processed Successfully!');
+      setCart([]);
+      setCustomerInfo({ name: '', phone: '', address: 'Walk-in Customer' });
+    } catch (err) {
+      console.error(err);
+      alert('Failed to process order');
+    } finally {
+      setIsProcessing(false);
+    }
+  };
+
+  const filteredItems = items.filter(item => {
+    const matchesSearch = item.name.toLowerCase().includes(search.toLowerCase());
+    const matchesCategory = selectedCategory === 'all' || item.category?._id === selectedCategory || item.category === selectedCategory;
+    return matchesSearch && matchesCategory;
+  });
+
+  return (
+    <div className="flex h-[calc(100vh-140px)] gap-8 font-sans">
+      {/* Left: Menu Selection */}
+      <div className="flex-1 flex flex-col gap-8 h-full min-w-0">
+        <div className="flex flex-col md:flex-row gap-6">
+          <div className="relative flex-1">
+            <Search className="absolute left-6 top-1/2 -translate-y-1/2 text-gray-500" size={18} />
+            <input 
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+              placeholder="SEARCH MENU..."
+              className="w-full bg-[#111111] border border-white/5 rounded-full pl-16 pr-8 py-5 text-sm font-black text-white uppercase tracking-widest focus:border-[#FFE600] outline-none"
+            />
+          </div>
+          <div className="flex gap-2 overflow-x-auto pb-2 scrollbar-hide">
+            <button 
+              onClick={() => setSelectedCategory('all')}
+              className={`px-6 py-4 rounded-full text-[10px] font-black uppercase tracking-widest whitespace-nowrap transition-all ${selectedCategory === 'all' ? 'bg-[#FFE600] text-black' : 'bg-[#111111] text-gray-400 border border-white/5'}`}
+            >
+              All Items
+            </button>
+            {categories.map(cat => (
+              <button 
+                key={cat._id}
+                onClick={() => setSelectedCategory(cat._id)}
+                className={`px-6 py-4 rounded-full text-[10px] font-black uppercase tracking-widest whitespace-nowrap transition-all ${selectedCategory === cat._id ? 'bg-[#FFE600] text-black' : 'bg-[#111111] text-gray-400 border border-white/5'}`}
+              >
+                {cat.name}
+              </button>
+            ))}
+          </div>
+        </div>
+
+        <div className="flex-1 overflow-y-auto pr-4 custom-scrollbar">
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
+            {filteredItems.map(item => (
+              <div 
+                key={item._id} 
+                onClick={() => addToCart(item)}
+                className="bg-[#111111] border border-white/5 rounded-3xl p-4 cursor-pointer hover:border-[#FFE600]/50 transition-all group"
+              >
+                <div className="aspect-square rounded-2xl overflow-hidden mb-4 border border-white/5">
+                  <img src={item.image} alt={item.name} className="w-full h-full object-cover grayscale group-hover:grayscale-0 transition-all" />
+                </div>
+                <h4 className="text-white text-xs font-black uppercase tracking-tight mb-1 truncate">{item.name}</h4>
+                <div className="flex justify-between items-center">
+                   <span className="text-gray-500 text-[10px] uppercase font-bold tracking-widest">{item.category?.name}</span>
+                   <span className="text-[#FFE600] font-black">${item.price}</span>
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      </div>
+
+      {/* Right: Cart & Checkout */}
+      <div className="w-[400px] flex flex-col gap-8 bg-[#111111] border border-white/5 rounded-[40px] p-8 h-full shadow-2xl overflow-hidden">
+        <div className="flex items-center gap-4 border-b border-white/5 pb-6">
+           <div className="w-12 h-12 rounded-2xl bg-[#FFE600] text-black flex items-center justify-center">
+              <ShoppingBag size={24} />
+           </div>
+           <div>
+              <h3 className="text-white font-serif text-xl uppercase tracking-tight">Order Tray</h3>
+              <p className="text-gray-500 text-[10px] font-black uppercase tracking-[0.2em]">{cart.length} items selected</p>
+           </div>
+        </div>
+
+        <div className="flex-1 overflow-y-auto space-y-4 pr-2 custom-scrollbar">
+           {cart.map(item => (
+             <div key={item._id} className="flex gap-4 bg-white/[0.02] border border-white/5 p-4 rounded-2xl">
+                <div className="w-14 h-14 rounded-xl overflow-hidden shrink-0 border border-white/5">
+                   <img src={item.image} alt={item.name} className="w-full h-full object-cover" />
+                </div>
+                <div className="flex-1 min-w-0">
+                   <h5 className="text-white text-[11px] font-black uppercase truncate mb-2">{item.name}</h5>
+                   <div className="flex justify-between items-center">
+                      <div className="flex items-center gap-3">
+                         <button onClick={() => updateQuantity(item._id, -1)} className="text-gray-500 hover:text-[#FFE600]"><Minus size={14} /></button>
+                         <span className="text-white text-xs font-bold">{item.quantity}</span>
+                         <button onClick={() => updateQuantity(item._id, 1)} className="text-gray-500 hover:text-[#FFE600]"><Plus size={14} /></button>
+                      </div>
+                      <span className="text-[#FFE600] font-black text-xs">${(item.price * item.quantity).toFixed(2)}</span>
+                   </div>
+                </div>
+                <button onClick={() => removeFromCart(item._id)} className="text-gray-700 hover:text-rose-500 ml-2"><Trash2 size={16} /></button>
+             </div>
+           ))}
+           {cart.length === 0 && (
+             <div className="h-full flex flex-col items-center justify-center opacity-20 text-center py-20">
+                <ShoppingBag size={64} className="mb-4" />
+                <p className="text-xs uppercase font-black tracking-widest">Tray is empty</p>
+             </div>
+           )}
+        </div>
+
+        <div className="space-y-6 pt-6 border-t border-white/5">
+           <div className="space-y-3">
+              <div className="flex items-center gap-3 bg-white/5 rounded-2xl px-4 py-3">
+                 <User size={14} className="text-gray-500" />
+                 <input 
+                    value={customerInfo.name}
+                    onChange={e => setCustomerInfo({...customerInfo, name: e.target.value})}
+                    placeholder="CUSTOMER NAME..."
+                    className="bg-transparent border-none text-[10px] font-black text-white w-full uppercase outline-none"
+                 />
+              </div>
+              <div className="flex items-center gap-3 bg-white/5 rounded-2xl px-4 py-3">
+                 <MapPin size={14} className="text-gray-500" />
+                 <input 
+                    value={customerInfo.address}
+                    onChange={e => setCustomerInfo({...customerInfo, address: e.target.value})}
+                    placeholder="TABLE / ADDRESS..."
+                    className="bg-transparent border-none text-[10px] font-black text-white w-full uppercase outline-none"
+                 />
+              </div>
+           </div>
+
+           <div className="flex justify-between items-center">
+              <span className="text-white/40 text-[10px] font-black uppercase tracking-[0.2em]">Total Amount</span>
+              <span className="text-2xl font-black text-[#FFE600]">${total.toFixed(2)}</span>
+           </div>
+
+           <button 
+              disabled={cart.length === 0 || isProcessing}
+              onClick={handleCheckout}
+              className="w-full bg-[#FFE600] text-black font-black py-5 rounded-full uppercase tracking-[0.2em] text-[10px] hover:bg-white transition-all disabled:opacity-30 shadow-[0_15px_30px_rgba(255,230,0,0.1)]"
+           >
+              {isProcessing ? 'PROCESSING...' : 'PROCESS PAYMENT'}
+           </button>
+        </div>
+      </div>
+    </div>
+  );
+};
+
+export default POS;
