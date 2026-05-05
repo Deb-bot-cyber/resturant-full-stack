@@ -140,8 +140,15 @@ async function seed() {
     await Order.deleteMany({});
     await User.deleteMany({});
 
-    await Category.insertMany(categories);
-    await MenuItem.insertMany(menuItems);
+    const insertedCategories = await Category.insertMany(categories);
+    
+    // Map category names to their new IDs for menu items
+    const menuItemsWithIds = menuItems.map(item => {
+      const cat = insertedCategories.find(c => c.name === item.category);
+      return { ...item, category: cat ? cat._id : null };
+    });
+
+    await MenuItem.insertMany(menuItemsWithIds);
     await Review.insertMany(reviews);
     await Event.insertMany(events);
 

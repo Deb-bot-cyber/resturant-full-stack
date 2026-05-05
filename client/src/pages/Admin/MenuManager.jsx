@@ -38,11 +38,18 @@ const MenuManager = () => {
 
   const handleEdit = (item) => {
     setEditingItem(item);
+    let categoryId = item.category?._id || item.category;
+    // If category is a string and NOT an ID, try to find the matching category ID
+    if (typeof categoryId === 'string' && categoryId.length > 0 && !/^[0-9a-fA-F]{24}$/.test(categoryId)) {
+      const matchedCat = categories.find(c => c.name === categoryId);
+      if (matchedCat) categoryId = matchedCat._id;
+    }
+    
     setFormData({
       name: item.name,
       description: item.description,
       price: item.price,
-      category: item.category?._id || item.category,
+      category: categoryId,
       image: item.image,
       isFavorite: item.isFavorite || false
     });

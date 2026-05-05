@@ -5,7 +5,7 @@ const MenuItem = require('../models/MenuItem');
 // Get all menu items
 router.get('/', async (req, res) => {
   try {
-    const items = await MenuItem.find();
+    const items = await MenuItem.find().populate('category');
     res.json(items);
   } catch (err) {
     res.status(500).json({ message: err.message });
